@@ -1,0 +1,34 @@
+const express = require("express");
+const { body } = require("express-validator");
+const jwtVerify = require("../middlewares/jwtVerify");
+
+const userController = require("../controllers/user");
+
+const router = express.Router();
+
+router.get("/email-check", userController.emailCheck);
+router.get("/search", userController.searchUser);
+router.get("/add-user", jwtVerify, userController.addUser);
+router.get("/auto-login", jwtVerify, userController.autoLogIn);
+router.get("/user-data", jwtVerify, userController.getUserData);
+router.get("/reject-request", jwtVerify, userController.rejectFriendRequest);
+router.get(
+  "/accept-user-request",
+  jwtVerify,
+  userController.acceptFriendRequest
+);
+router.post(
+  "/sign-up",
+  [
+    body("name").isLength({ min: 4 }),
+    body("email").isEmail(),
+    body("password").isLength({ min: 8 }),
+  ],
+  userController.postSignUp
+);
+router.post(
+  "/log-in",
+  [body("email").isEmail(), body("password").isLength({ min: 8 })],
+  userController.postLogIn
+);
+module.exports = router;
