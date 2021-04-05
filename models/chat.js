@@ -15,7 +15,10 @@ const chatSchema = new Schema({
   chats: [
     {
       text: String,
-      name: String,
+      userId: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
       time: Date,
     },
   ],
