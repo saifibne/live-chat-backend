@@ -1,4 +1,6 @@
 const Chat = require("../models/chat");
+const socket = require("../socket");
+const User = require("../models/user");
 
 exports.getChatChannels = async (req, res, next) => {
   if (!req.userId) {
@@ -97,6 +99,15 @@ exports.addChat = async (req, res, next) => {
   const groupId = req.query.groupId;
   const message = req.body.message;
   const time = new Date();
+  let user;
+  try {
+    user = await User.findOne({ _id: userId });
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
   try {
     await Chat.updateOne(
       { _id: groupId },
@@ -108,6 +119,16 @@ exports.addChat = async (req, res, next) => {
       code: 500,
     });
   }
+  console.log(socket.getIo);
+  socket.getIo().emit(groupId, {
+    connection: "active",
+    data: {
+      text: message,
+      userId: userId,
+      time: time,
+      pictureUrl: user.pictureUrl,
+    },
+  });
   res.status(200).json({
     message: "success message",
     code: 200,

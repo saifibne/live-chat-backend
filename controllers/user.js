@@ -144,6 +144,7 @@ exports.postLogIn = async (req, res, next) => {
   res.status(200).json({
     message: "successfully login",
     token: token,
+    userId: user._id,
     code: 200,
   });
 };
@@ -179,6 +180,7 @@ exports.autoLogIn = async (req, res, next) => {
   res.status(200).json({
     message: "success",
     token: token,
+    userId: userId,
     code: 200,
   });
 };
