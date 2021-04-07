@@ -1,6 +1,7 @@
 const Chat = require("../models/chat");
 const socket = require("../socket");
 const User = require("../models/user");
+const mongoose = require("mongoose");
 
 exports.getChatChannels = async (req, res, next) => {
   if (!req.userId) {
@@ -81,10 +82,31 @@ exports.getChats = async (req, res, next) => {
       return { ...eachChat._doc, owner: true };
     }
   });
+  let totalMessageCount;
+  try {
+    totalMessageCount = await Chat.aggregate([
+      { $match: { _id: mongoose.Types.ObjectId(chatId) } },
+      {
+        $project: {
+          count: { $size: "$chats" },
+        },
+      },
+    ]);
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  let pagination = false;
+  if (totalMessageCount[0].count > 20) {
+    pagination = true;
+  }
   res.status(200).json({
     message: "success",
     user: userDetails[0],
     chats: updatedChats,
+    pagination: pagination,
   });
 };
 
@@ -119,7 +141,6 @@ exports.addChat = async (req, res, next) => {
       code: 500,
     });
   }
-  console.log(socket.getIo);
   socket.getIo().emit(groupId, {
     connection: "active",
     data: {
@@ -132,5 +153,46 @@ exports.addChat = async (req, res, next) => {
   res.status(200).json({
     message: "success message",
     code: 200,
+  });
+};
+exports.getMoreChats = async (req, res, next) => {
+  if (!req.userId) {
+    return res.status(202).json({
+      message: "please attach the token",
+      code: 202,
+    });
+  }
+  const userId = req.userId;
+  const chatId = req.query.chatId;
+  const page = req.query.page || 1;
+  const skipValue = -20 * (+page + 1);
+  const returnValue = 20;
+  let chats;
+  try {
+    chats = await Chat.findOne(
+      { _id: chatId },
+      { chats: { $slice: [skipValue, returnValue] } }
+    )
+      .populate({
+        path: "participents.userId",
+        select: "name pictureUrl _id",
+      })
+      .populate({ path: "chats.userId", select: "pictureUrl _id" });
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  const updatedChats = chats.chats.map((eachChat) => {
+    if (eachChat.userId._id.toString() !== userId) {
+      return { ...eachChat._doc, owner: false };
+    } else {
+      return { ...eachChat._doc, owner: true };
+    }
+  });
+  res.status(200).json({
+    message: "success",
+    chats: updatedChats,
   });
 };
