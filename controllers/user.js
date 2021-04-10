@@ -193,19 +193,51 @@ exports.searchUser = async (req, res, next) => {
       code: 201,
     });
   }
+  if (!req.userId) {
+    return res.status(202).json({
+      message: "please attach the token",
+      code: 202,
+    });
+  }
+  const ownerId = req.userId;
   await User.collection.createIndex({ name: "text" });
   let users;
+  let owner;
   try {
-    users = await User.find({ $text: { $search: userName } });
+    owner = await User.findOne({ _id: ownerId });
   } catch (error) {
     return res.status(500).json({
       message: "some database error",
       code: 500,
     });
   }
+  try {
+    users = await User.find({ $text: { $search: userName } }).select(
+      "_id name pictureUrl email"
+    );
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  const filteredUser = users.filter(
+    (eachUser) => eachUser._id.toString() !== ownerId.toString()
+  );
+  const updatedUsersArray = filteredUser.map((eachFilterUser) => {
+    const matchedUser = owner.friendList.find(
+      (eachFriend) =>
+        eachFriend.userId.toString() === eachFilterUser._id.toString()
+    );
+    if (matchedUser) {
+      return { ...eachFilterUser._doc, alreadyFriend: true };
+    } else {
+      return { ...eachFilterUser._doc, alreadyFriend: false };
+    }
+  });
   res.status(200).json({
     message: "success",
-    users: users,
+    users: updatedUsersArray,
   });
 };
 
@@ -386,15 +418,6 @@ exports.rejectFriendRequest = async (req, res, next) => {
   }
   const ownerUserId = req.userId;
   const userId = req.query.userId;
-  // let user;
-  // try {
-  //   user = await User.findOne({ _id: ownerUserId });
-  // } catch (error) {
-  //   return res.status(500).json({
-  //     message: "some database error",
-  //     code: 500,
-  //   });
-  // }
   try {
     await User.updateOne(
       { _id: ownerUserId },
@@ -409,5 +432,48 @@ exports.rejectFriendRequest = async (req, res, next) => {
   res.status(200).json({
     message: "success",
     code: 200,
+  });
+};
+
+exports.getFriendList = async (req, res, next) => {
+  if (!req.userId) {
+    return res.status(202).json({
+      message: "attach token",
+      code: 202,
+    });
+  }
+  const userId = req.userId;
+  let user;
+  try {
+    user = await User.findOne({ _id: userId }).populate({
+      path: "friendList.userId",
+      select: "name _id pictureUrl email",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  res.status(200).json({
+    message: "success",
+    friends: user.friendList,
+  });
+};
+
+exports.getFriendDetails = async (req, res, next) => {
+  const userId = req.query.friendId;
+  let user;
+  try {
+    user = await User.findOne({ _id: userId });
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  res.status(200).json({
+    message: "success",
+    userDetails: user,
   });
 };
