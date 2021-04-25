@@ -465,7 +465,61 @@ exports.getFriendDetails = async (req, res, next) => {
   const userId = req.query.friendId;
   let user;
   try {
-    user = await User.findOne({ _id: userId });
+    user = await User.findOne(
+      { _id: userId },
+      {
+        _id: 1,
+        address: 1,
+        birthDate: 1,
+        email: 1,
+        name: 1,
+        phoneNo: 1,
+        pictureUrl: 1,
+      }
+    );
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  if (!user.birthDate) {
+    user.birthDate = "Not Given";
+  }
+  if (!user.phoneNo) {
+    user.phoneNo = "Not Given";
+  }
+  if (!user.address) {
+    user.address = "Not Given";
+  }
+  res.status(200).json({
+    message: "success",
+    userDetails: user,
+  });
+};
+
+exports.getUserAccountData = async (req, res, next) => {
+  if (!req.userId) {
+    return res.status(202).json({
+      message: "attach token",
+      code: 202,
+    });
+  }
+  const userId = req.userId;
+  let user;
+  try {
+    user = await User.findOne(
+      { _id: userId },
+      {
+        _id: 1,
+        address: 1,
+        birthDate: 1,
+        email: 1,
+        name: 1,
+        phoneNo: 1,
+        pictureUrl: 1,
+      }
+    );
   } catch (error) {
     return res.status(500).json({
       message: "some database error",
@@ -475,5 +529,42 @@ exports.getFriendDetails = async (req, res, next) => {
   res.status(200).json({
     message: "success",
     userDetails: user,
+  });
+};
+
+exports.updateUserAccountData = async (req, res, next) => {
+  const userId = req.params.userId;
+  const firstName = req.body.firstName;
+  const lastName = req.body.lastName;
+  const name = `${firstName} ${lastName}`;
+  const phoneNo = req.body.phoneNo;
+  const birthDate = req.body.birthDate;
+  const email = req.body.email;
+  const address = req.body.address;
+  let user;
+  try {
+    user = await User.findOne({ _id: userId });
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  if (name) {
+    user.name = name;
+  }
+  if (phoneNo) {
+    user.phoneNo = phoneNo;
+  }
+  if (birthDate) {
+    user.birthDate = new Date(birthDate);
+  }
+  if (address) {
+    user.address = address;
+  }
+  user.email = email;
+  await user.save();
+  res.status(200).json({
+    message: "success",
   });
 };

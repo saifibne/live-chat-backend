@@ -44,6 +44,9 @@ const userSchema = new Schema({
       },
     },
   ],
+  birthDate: String,
+  phoneNo: String,
+  address: String,
   pictureUrl: {
     type: String,
   },
