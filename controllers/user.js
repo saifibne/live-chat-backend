@@ -568,3 +568,38 @@ exports.updateUserAccountData = async (req, res, next) => {
     message: "success",
   });
 };
+
+exports.changePassword = async (req, res, next) => {
+  if (!req.userId) {
+    return res.status(202).json({
+      message: "attach token",
+      code: 202,
+    });
+  }
+  const userId = req.userId;
+  const password = req.body.password;
+  const newPassword = req.body.newPassword;
+  let user;
+  try {
+    user = await User.findOne({ _id: userId }, { password: 1 });
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  const matchPassword = await bcrypt.compare(password, user.password);
+  if (!matchPassword) {
+    return res.status(202).json({
+      message: "password doesn't match",
+      code: 400,
+    });
+  }
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+  user.password = hashedPassword;
+  await user.save();
+  res.status(200).json({
+    message: "password changed successfully",
+    code: 200,
+  });
+};

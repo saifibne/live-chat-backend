@@ -38,4 +38,5 @@ router.post(
   "/update-account-data/:userId",
   userController.updateUserAccountData
 );
+router.post("/change-password", jwtVerify, userController.changePassword);
 module.exports = router;
