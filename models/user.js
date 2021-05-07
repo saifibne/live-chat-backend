@@ -37,6 +37,7 @@ const userSchema = new Schema({
       imageUrl: String,
     },
   ],
+  status: String,
   chatConnections: [
     {
       connectionId: {

@@ -15,10 +15,16 @@ router.get("/user-details", userController.getFriendDetails);
 router.get("/account-details", jwtVerify, userController.getUserAccountData);
 router.get("/friend-list", jwtVerify, userController.getFriendList);
 router.get("/reject-request", jwtVerify, userController.rejectFriendRequest);
+router.get("/user-status", jwtVerify, userController.setUserStatus);
 router.get(
   "/accept-user-request",
   jwtVerify,
   userController.acceptFriendRequest
+);
+router.get(
+  "/clear-notifications",
+  jwtVerify,
+  userController.clearAllNotification
 );
 router.post(
   "/sign-up",

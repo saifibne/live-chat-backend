@@ -5,7 +5,7 @@ const { validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
 
 const deleteMiddleware = require("../middlewares/delete");
-const { update } = require("../models/user");
+const socket = require("../socket");
 
 exports.postSignUp = async (req, res, next) => {
   const name = req.body.name;
@@ -71,7 +71,7 @@ exports.postSignUp = async (req, res, next) => {
       password: hashedPassword,
       pendingRequests: [],
       chatConnections: [],
-      pictureUrl: imagePath,
+      pictureUrl: `http://localhost:3000/${imagePath}`,
     });
   }
   const newUser = await user.save();
@@ -134,11 +134,12 @@ exports.postLogIn = async (req, res, next) => {
       code: 202,
     });
   }
+  const expireTime = new Date(new Date().setDate(new Date().getDate() + 7));
   const token = jwt.sign(
-    { id: user._id, email: user.email },
+    { id: user._id, email: user.email, expireTime: expireTime },
     "someSuperSecret",
     {
-      expiresIn: "1h",
+      expiresIn: "7d",
     }
   );
   res.status(200).json({
@@ -172,10 +173,12 @@ exports.autoLogIn = async (req, res, next) => {
       code: 400,
     });
   }
+  const tokenExpire = req.expireTime;
+  const expireTime = new Date(tokenExpire).getTime() - new Date().getTime();
   const token = jwt.sign(
-    { id: user._id, email: user.email },
+    { id: user._id, email: user.email, expireTime: tokenExpire },
     "someSuperSecret",
-    { expiresIn: "1h" }
+    { expiresIn: expireTime }
   );
   res.status(200).json({
     message: "success",
@@ -323,8 +326,11 @@ exports.getUserData = async (req, res, next) => {
       code: 500,
     });
   }
+  const userName = user.name.split(" ")[0];
   res.status(200).json({
     message: "success",
+    name: userName,
+    pictureUrl: user.pictureUrl,
     notifications: user.notifications,
     pendingRequests: user.pendingRequests,
     code: 200,
@@ -457,6 +463,7 @@ exports.getFriendList = async (req, res, next) => {
   }
   res.status(200).json({
     message: "success",
+    code: 1223,
     friends: user.friendList,
   });
 };
@@ -601,5 +608,89 @@ exports.changePassword = async (req, res, next) => {
   res.status(200).json({
     message: "password changed successfully",
     code: 200,
+  });
+};
+
+exports.clearAllNotification = async (req, res, next) => {
+  if (!req.userId) {
+    return res.status(202).json({
+      message: "attach token",
+      code: 202,
+    });
+  }
+  const userId = req.userId;
+  let user;
+  try {
+    user = await User.findOne({ _id: userId });
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  if (!user) {
+    return res.status(400).json({
+      message: "can't find user",
+      code: 400,
+    });
+  }
+  user.notifications = [];
+  await user.save();
+  res.status(200).json({
+    message: "success",
+    code: 200,
+  });
+};
+
+exports.setUserStatus = async (req, res, next) => {
+  if (!req.userId) {
+    return res.status(202).json({
+      message: "attach token",
+      code: 202,
+    });
+  }
+  const userId = req.userId;
+  const status = req.query.status;
+  let user;
+  try {
+    user = await User.findOne({ _id: userId });
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  if (!user) {
+    return res.status(500).json({
+      message: "can't find user",
+      code: 500,
+    });
+  }
+  if (status === "online") {
+    user.status = "online";
+  } else if (status === "offline") {
+    user.status = "offline";
+  }
+  await user.save();
+  let chatConnections;
+  try {
+    chatConnections = await Chat.find(
+      { "participents.userId": userId },
+      { _id: 1 }
+    );
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  if (chatConnections.length > 0) {
+    for (let eachConnection of chatConnections) {
+      socket.getIo().emit(`${eachConnection._id}-status`, { status: status });
+    }
+  }
+  console.log(chatConnections);
+  res.status(200).json({
+    message: "success",
   });
 };

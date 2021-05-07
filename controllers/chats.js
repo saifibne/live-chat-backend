@@ -40,6 +40,7 @@ exports.getChatChannels = async (req, res, next) => {
   });
   res.status(200).json({
     message: "success",
+    code: 1224,
     chatConnections: editedChats,
   });
 };
@@ -61,7 +62,7 @@ exports.getChats = async (req, res, next) => {
     )
       .populate({
         path: "participents.userId",
-        select: "name pictureUrl _id",
+        select: "name pictureUrl _id status",
       })
       .populate({ path: "chats.userId", select: "pictureUrl _id" });
   } catch (error) {
@@ -194,5 +195,53 @@ exports.getMoreChats = async (req, res, next) => {
   res.status(200).json({
     message: "success",
     chats: updatedChats,
+  });
+};
+
+exports.getParticularChatConnection = async (req, res, next) => {
+  if (!req.userId) {
+    return res.status(202).json({
+      message: "please attach the token",
+      code: 202,
+    });
+  }
+  const userId = req.userId;
+  const friendId = req.query.friendId;
+  let chatConnection;
+  let updatedConnection = {};
+  try {
+    chatConnection = await Chat.findOne(
+      {
+        $and: [
+          { "participents.userId": userId },
+          { "participents.userId": friendId },
+        ],
+      },
+      { chats: { $slice: -1 } }
+    ).populate({ path: "participents.userId", select: "name pictureUrl _id" });
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  if (chatConnection) {
+    if (chatConnection.chats.length > 0) {
+      updatedConnection.message = chatConnection.chats[0].text;
+      updatedConnection.time = chatConnection.chats[0].time;
+    } else {
+      updatedConnection.message = "start chatting";
+      updatedConnection.time = new Date();
+    }
+    const userDetails = chatConnection.participents.find((eachParticipent) => {
+      return eachParticipent.userId._id.toString() === friendId.toString();
+    });
+    updatedConnection.name = userDetails.userId.name;
+    updatedConnection.pictureUrl = userDetails.userId.pictureUrl;
+    updatedConnection._id = chatConnection._id;
+  }
+  res.status(200).json({
+    message: "success",
+    chatConnection: updatedConnection,
   });
 };

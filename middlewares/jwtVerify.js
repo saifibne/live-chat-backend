@@ -31,5 +31,6 @@ module.exports = (req, res, next) => {
     });
   }
   req.userId = verifiedToken.id;
+  req.expireTime = verifiedToken.expireTime;
   next();
 };
