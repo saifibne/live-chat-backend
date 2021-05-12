@@ -61,7 +61,6 @@ exports.postSignUp = async (req, res, next) => {
       email: email,
       password: hashedPassword,
       pendingRequests: [],
-      chatConnections: [],
       pictureUrl: imageUrl,
     });
   } else {
@@ -70,7 +69,6 @@ exports.postSignUp = async (req, res, next) => {
       email: email,
       password: hashedPassword,
       pendingRequests: [],
-      chatConnections: [],
       pictureUrl: `http://localhost:3000/${imagePath}`,
     });
   }
@@ -686,10 +684,14 @@ exports.setUserStatus = async (req, res, next) => {
   }
   if (chatConnections.length > 0) {
     for (let eachConnection of chatConnections) {
-      socket.getIo().emit(`${eachConnection._id}-status`, { status: status });
+      socket
+        .getIo()
+        .emit(`${eachConnection._id}-status`, {
+          userId: userId,
+          status: status,
+        });
     }
   }
-  console.log(chatConnections);
   res.status(200).json({
     message: "success",
   });

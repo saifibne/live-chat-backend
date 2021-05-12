@@ -38,13 +38,6 @@ const userSchema = new Schema({
     },
   ],
   status: String,
-  chatConnections: [
-    {
-      connectionId: {
-        type: Schema.Types.ObjectId,
-      },
-    },
-  ],
   birthDate: String,
   phoneNo: String,
   address: String,

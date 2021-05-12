@@ -16,7 +16,9 @@ exports.getChatChannels = async (req, res, next) => {
     chats = await Chat.find(
       { "participents.userId": userId },
       { chats: { $slice: -1 } }
-    ).populate({ path: "participents.userId", select: "name pictureUrl" });
+    )
+      .populate({ path: "participents.userId", select: "name pictureUrl" })
+      .sort({ updatedAt: -1 });
   } catch (error) {
     return res.status(500).json({
       message: "some database error",
