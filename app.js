@@ -1,13 +1,12 @@
+require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const multer = require("multer");
 const path = require("path");
-// const io = require("socket.io")(8000);
 
 const userRoutes = require("./routes/user");
 const chatRoutes = require("./routes/chats");
-// const ioConnection = require("./socket");
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -19,10 +18,6 @@ const storage = multer.diskStorage({
 });
 
 const app = express();
-
-// io.on("connection", (socket) => {
-//   console.log("socket connected");
-// });
 
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -54,7 +49,6 @@ mongoose
     io.on("connection", (socket) => {
       console.log("socket connected");
     });
-    // io.listen(5000);
   })
   .catch((error) => {
     console.log(error);
