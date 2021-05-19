@@ -69,7 +69,7 @@ exports.postSignUp = async (req, res, next) => {
       email: email,
       password: hashedPassword,
       pendingRequests: [],
-      pictureUrl: `http://localhost:3000/${imagePath}`,
+      pictureUrl: `https://chattingbackendonline.xyz/${imagePath}`,
     });
   }
   const newUser = await user.save();
@@ -344,6 +344,13 @@ exports.acceptFriendRequest = async (req, res, next) => {
   }
   const ownerUserId = req.userId;
   const userId = req.query.userId;
+  // check ownerUserId and userId are not same...
+  if (ownerUserId === userId) {
+    return res.status(202).json({
+      message: "both userId cant be same",
+      code: 202,
+    });
+  }
   let senderUser;
   let receiverUser;
   try {
@@ -360,6 +367,16 @@ exports.acceptFriendRequest = async (req, res, next) => {
     return res.status(500).json({
       message: "some database error",
       code: 500,
+    });
+  }
+  // check that sender user already exists in friendlist..
+  const recieverUserIndexMatch = receiverUser.friendList.findIndex(
+    (eachUser) => eachUser.userId === senderUser._id
+  );
+  if (recieverUserIndexMatch !== -1) {
+    return res.status(202).json({
+      message: "user already exists",
+      code: 202,
     });
   }
   receiverUser.friendList.push({ userId: senderUser._id });
@@ -381,6 +398,16 @@ exports.acceptFriendRequest = async (req, res, next) => {
     message: `${receiverUser.name} accepted your friend request`,
     imageUrl: receiverUser.pictureUrl,
   });
+  //check receiverUser doent already exists in senderUser friendlist...
+  const sendeUserIndexMatch = senderUser.friendList.findIndex(
+    (eachUser) => eachUser.userId === receiverUser._id
+  );
+  if (sendeUserIndexMatch !== -1) {
+    return res.status(202).json({
+      message: "user already exists",
+      code: 202,
+    });
+  }
   senderUser.friendList.push({ userId: receiverUser._id });
   try {
     await senderUser.save();
@@ -684,12 +711,10 @@ exports.setUserStatus = async (req, res, next) => {
   }
   if (chatConnections.length > 0) {
     for (let eachConnection of chatConnections) {
-      socket
-        .getIo()
-        .emit(`${eachConnection._id}-status`, {
-          userId: userId,
-          status: status,
-        });
+      socket.getIo().emit(`${eachConnection._id}-status`, {
+        userId: userId,
+        status: status,
+      });
     }
   }
   res.status(200).json({
