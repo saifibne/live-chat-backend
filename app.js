@@ -7,6 +7,8 @@ const path = require("path");
 
 const userRoutes = require("./routes/user");
 const chatRoutes = require("./routes/chats");
+const UserPresence = require("./models/userPresence");
+const Chat = require("./models/chat");
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -46,8 +48,73 @@ mongoose
     console.log("connected to Database");
     const server = app.listen(3000);
     const io = require("./socket").init(server);
-    io.on("connection", (socket) => {
-      console.log("socket connected");
+    io.on("connection", async (socket) => {
+      let user;
+      try {
+        user = await UserPresence.findOne({
+          userId: socket.handshake.headers.userid,
+        });
+      } catch (error) {
+        console.log(error);
+      }
+      if (user) {
+        user.socketId = socket.id;
+        user.status = "online";
+        await user.save();
+      } else {
+        const newUser = new UserPresence({
+          userId: socket.handshake.headers.userid,
+          socketId: socket.id,
+          status: "online",
+        });
+        await newUser.save();
+      }
+      let chatConnections;
+      try {
+        chatConnections = await Chat.find(
+          { "participents.userId": socket.handshake.headers.userid },
+          { _id: 1 }
+        );
+      } catch (error) {
+        console.log(error);
+      }
+      if (chatConnections.length > 0) {
+        for (let eachConnection of chatConnections) {
+          io.emit(`${eachConnection._id}-status`, {
+            userId: socket.handshake.headers.userid,
+            status: "online",
+          });
+        }
+      }
+      socket.on("disconnect", async () => {
+        let user;
+        try {
+          user = await UserPresence.findOne({
+            socketId: socket.id,
+          });
+        } catch (error) {
+          console.log(error);
+        }
+        user.status = "offline";
+        await user.save();
+        let chatConnections;
+        try {
+          chatConnections = await Chat.find(
+            { "participents.userId": user.userId },
+            { _id: 1 }
+          );
+        } catch (error) {
+          console.log(error);
+        }
+        if (chatConnections.length > 0) {
+          for (let eachConnection of chatConnections) {
+            io.emit(`${eachConnection._id}-status`, {
+              userId: user.userId,
+              status: "offline",
+            });
+          }
+        }
+      });
     });
   })
   .catch((error) => {

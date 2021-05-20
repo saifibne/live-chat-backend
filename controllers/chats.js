@@ -2,6 +2,7 @@ const Chat = require("../models/chat");
 const socket = require("../socket");
 const User = require("../models/user");
 const mongoose = require("mongoose");
+const UserPresence = require("../models/userPresence");
 
 exports.getChatChannels = async (req, res, next) => {
   if (!req.userId) {
@@ -64,7 +65,7 @@ exports.getChats = async (req, res, next) => {
     )
       .populate({
         path: "participents.userId",
-        select: "name pictureUrl _id status",
+        select: "name pictureUrl _id",
       })
       .populate({ path: "chats.userId", select: "pictureUrl _id" });
   } catch (error) {
@@ -76,6 +77,20 @@ exports.getChats = async (req, res, next) => {
   const userDetails = chatConnection.participents.filter((eachParticipent) => {
     return eachParticipent.userId._id.toString() !== userId.toString();
   });
+  let userPresenceDetails;
+  try {
+    userPresenceDetails = await UserPresence.findOne({
+      userId: userDetails[0].userId._id,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "some database error",
+      code: 500,
+    });
+  }
+  if (userPresenceDetails) {
+    userDetails[0].userId.status = userPresenceDetails.status;
+  }
   const updatedChats = chatConnection.chats.map((eachChat) => {
     if (
       eachChat.userId._id.toString() === userDetails[0].userId._id.toString()
