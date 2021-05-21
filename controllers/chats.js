@@ -74,7 +74,7 @@ exports.getChats = async (req, res, next) => {
       code: 500,
     });
   }
-  const userDetails = chatConnection.participents.filter((eachParticipent) => {
+  let userDetails = chatConnection.participents.filter((eachParticipent) => {
     return eachParticipent.userId._id.toString() !== userId.toString();
   });
   let userPresenceDetails;
@@ -89,7 +89,18 @@ exports.getChats = async (req, res, next) => {
     });
   }
   if (userPresenceDetails) {
-    userDetails[0].userId.status = userPresenceDetails.status;
+    userDetails = [
+      {
+        _id: userDetails[0]._id,
+        userId: {
+          _id: userDetails[0].userId._id,
+          name: userDetails[0].userId.name,
+          pictureUrl: userDetails[0].userId.pictureUrl,
+          status: userPresenceDetails.status,
+        },
+      },
+    ];
+    console.log(userDetails);
   }
   const updatedChats = chatConnection.chats.map((eachChat) => {
     if (
