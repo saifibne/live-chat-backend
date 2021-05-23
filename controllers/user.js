@@ -379,6 +379,14 @@ exports.acceptFriendRequest = async (req, res, next) => {
       code: 202,
     });
   }
+  const pendingRequestIndex = receiverUser.pendingRequests.findIndex(
+    (eachRequest) => eachRequest.userId.toString() === userId.toString()
+  );
+  if (pendingRequestIndex === -1) {
+    return res.status(400).json({
+      message: "request not in your pending list",
+    });
+  }
   receiverUser.friendList.push({ userId: senderUser._id });
   const updatedRecieverPendingRequests = receiverUser.pendingRequests.filter(
     (eachUser) => {
