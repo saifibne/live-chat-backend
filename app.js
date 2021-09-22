@@ -4,6 +4,7 @@ const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const multer = require("multer");
 const path = require("path");
+const redis = require("redis");
 
 const userRoutes = require("./routes/user");
 const chatRoutes = require("./routes/chats");
@@ -17,6 +18,12 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
   },
+});
+
+exports.redisClient = redis.createClient();
+
+this.redisClient.on("errror", (err) => {
+  console.log(err);
 });
 
 const app = express();

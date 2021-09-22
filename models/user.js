@@ -43,6 +43,9 @@ const userSchema = new Schema({
   pictureUrl: {
     type: String,
   },
+  sessionKey: String,
+  sessionExpireTime: Number,
+  sessionExpireDuration: Number,
 });
 
 module.exports = mongoose.model("User", userSchema);

@@ -3,9 +3,12 @@ const Chat = require("../models/chat");
 const bcrypt = require("bcryptjs");
 const { validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
+const path = require("path");
+const crypto = require("crypto");
 
 const deleteMiddleware = require("../middlewares/delete");
 const socket = require("../socket");
+const redisClient = require("../app");
 
 exports.postSignUp = async (req, res, next) => {
   const name = req.body.name;
@@ -69,7 +72,7 @@ exports.postSignUp = async (req, res, next) => {
       email: email,
       password: hashedPassword,
       pendingRequests: [],
-      pictureUrl: `https://chattingbackendonline.xyz/${imagePath}`,
+      pictureUrl: "http://localhost:3000/" + imagePath,
     });
   }
   const newUser = await user.save();
@@ -132,20 +135,76 @@ exports.postLogIn = async (req, res, next) => {
       code: 202,
     });
   }
-  const expireTime = new Date(new Date().setDate(new Date().getDate() + 7));
-  const token = jwt.sign(
-    { id: user._id, email: user.email, expireTime: expireTime },
-    "someSuperSecret",
-    {
-      expiresIn: "7d",
+  const sessionExpireDuration =
+    new Date(new Date().setDate(new Date().getDate() + 7)).getTime() -
+    new Date().getTime();
+  const sessionExpireTime = new Date(
+    new Date().setDate(new Date().getDate() + 7)
+  ).getTime();
+
+  let sessionKey;
+
+  crypto.randomBytes(12, async (err, buffer) => {
+    sessionKey = buffer.toString("hex");
+    if (user.sessionKey && user.sessionExpireTime > Date.now()) {
+      redisClient.redisClient.del(user.sessionKey);
+      redisClient.redisClient.psetex(
+        sessionKey,
+        sessionExpireDuration,
+        user._id.toString(),
+        (err) => console.log(err)
+      );
+      user.sessionKey = sessionKey;
+      user.sessionExpireTime = sessionExpireTime;
+      user.sessionExpireDuration = sessionExpireDuration;
+      try {
+        user.save();
+      } catch (error) {
+        return res.status(500).json({
+          message: "Some database error",
+          code: 500,
+        });
+      }
+    } else {
+      user.sessionKey = sessionKey;
+      user.sessionExpireTime = sessionExpireTime;
+      user.sessionExpireDuration = sessionExpireDuration;
+      try {
+        user.save();
+      } catch (error) {
+        return res.status(500).json({
+          message: "Some database error",
+          code: 500,
+        });
+      }
+      redisClient.redisClient.psetex(
+        buffer.toString("hex"),
+        sessionExpireDuration,
+        user._id.toString(),
+        (err) => console.log(err)
+      );
     }
-  );
-  res.status(200).json({
-    message: "successfully login",
-    token: token,
-    userId: user._id,
-    code: 200,
+    res.status(200).json({
+      message: "successfully login",
+      token: sessionKey,
+      userId: user._id,
+      code: 200,
+    });
   });
+
+  // const token = jwt.sign(
+  //   { id: user._id, email: user.email, expireTime: expireTime },
+  //   "someSuperSecret",
+  //   {
+  //     expiresIn: "7d",
+  //   }
+  // );
+  // res.status(200).json({
+  //   message: "successfully login",
+  //   token: sessionKey,
+  //   userId: user._id,
+  //   code: 200,
+  // });
 };
 
 exports.autoLogIn = async (req, res, next) => {
@@ -171,16 +230,16 @@ exports.autoLogIn = async (req, res, next) => {
       code: 400,
     });
   }
-  const tokenExpire = req.expireTime;
-  const expireTime = new Date(tokenExpire).getTime() - new Date().getTime();
-  const token = jwt.sign(
-    { id: user._id, email: user.email, expireTime: tokenExpire },
-    "someSuperSecret",
-    { expiresIn: expireTime }
-  );
+  const tokenExpire = user.sessionExpireTime;
+  const expireTime = tokenExpire - new Date().getTime();
+  // const token = jwt.sign(
+  //   { id: user._id, email: user.email, expireTime: tokenExpire },
+  //   "someSuperSecret",
+  //   { expiresIn: expireTime }
+  // );
   res.status(200).json({
     message: "success",
-    token: token,
+    token: user.sessionKey,
     userId: userId,
     code: 200,
   });

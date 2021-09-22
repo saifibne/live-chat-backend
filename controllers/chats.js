@@ -100,7 +100,6 @@ exports.getChats = async (req, res, next) => {
         },
       },
     ];
-    console.log(userDetails);
   }
   const updatedChats = chatConnection.chats.map((eachChat) => {
     if (
